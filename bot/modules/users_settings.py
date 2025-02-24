@@ -42,7 +42,7 @@ leech_options = [
     "USER_DUMP",
     "USER_SESSION",
 ]
-rclone_options = ["RCLONE_CONFIG", "RCLONE_PATH"]
+rclone_options = ["RCLONE_CONFIG", "RCLONE_PATH", "RCLONE_FLAGS"]
 gdrive_options = ["TOKEN_PICKLE", "GDRIVE_ID", "INDEX_URL"]
 
 
@@ -52,12 +52,12 @@ async def get_user_settings(from_user, stype="main"):
     buttons = ButtonMaker()
     rclone_conf = f"rclone/{user_id}.conf"
     token_pickle = f"tokens/{user_id}.pickle"
-    thumbpath = f"Thumbnails/{user_id}.jpg"
+    thumbpath = f"thumbnails/{user_id}.jpg"
     user_dict = user_data.get(user_id, {})
     thumbnail = thumbpath if await aiopath.exists(thumbpath) else no_thumb
 
     if stype == "leech":
-        buttons.data_button("Thumbnail", f"userset {user_id} menu THUMBNAIL")
+        buttons.data_button("thumbnail", f"userset {user_id} menu THUMBNAIL")
         buttons.data_button(
             "Leech Prefix",
             f"userset {user_id} menu LEECH_FILENAME_PREFIX",
@@ -153,18 +153,26 @@ Thumbnail Layout is <b>{thumb_layout}</b>
             "Default Rclone Path",
             f"userset {user_id} menu RCLONE_PATH",
         )
+        buttons.data_button("Rclone Flags", f"userset {user_id} menu RCLONE_FLAGS")
         buttons.data_button("Back", f"userset {user_id} back")
         buttons.data_button("Close", f"userset {user_id} close")
         rccmsg = "Exists" if await aiopath.exists(rclone_conf) else "Not Exists"
         if user_dict.get("RCLONE_PATH", False):
             rccpath = user_dict["RCLONE_PATH"]
-        elif RP := Config.RCLONE_PATH:
-            rccpath = RP
+        elif Config.RCLONE_PATH:
+            rccpath = Config.RCLONE_PATH
         else:
             rccpath = "None"
+        if user_dict.get("RCLONE_FLAGS", False):
+            rcflags = user_dict["RCLONE_FLAGS"]
+        elif "RCLONE_FLAGS" not in user_dict and Config.RCLONE_FLAGS:
+            rcflags = Config.RCLONE_FLAGS
+        else:
+            rcflags = "None"
         text = f"""<u>Rclone Settings for {name}</u>
 Rclone Config <b>{rccmsg}</b>
-Rclone Path is <code>{rccpath}</code>"""
+Rclone Path is <code>{rccpath}</code>
+Rclone Flags is <code>{rcflags}</code>"""
     elif stype == "gdrive":
         buttons.data_button("token.pickle", f"userset {user_id} menu TOKEN_PICKLE")
         buttons.data_button("Default Gdrive ID", f"userset {user_id} menu GDRIVE_ID")
@@ -477,7 +485,7 @@ async def edit_user_settings(client, query):
     message = query.message
     data = query.data.split()
     handler_dict[user_id] = False
-    thumb_path = f"Thumbnails/{user_id}.jpg"
+    thumb_path = f"thumbnails/{user_id}.jpg"
     rclone_conf = f"rclone/{user_id}.conf"
     token_pickle = f"tokens/{user_id}.pickle"
     user_dict = user_data.get(user_id, {})
@@ -553,23 +561,24 @@ async def edit_user_settings(client, query):
             if await aiopath.exists(fpath):
                 await remove(fpath)
             del user_dict[data[3]]
+            await database.update_user_doc(user_id, data[3])
         else:
             update_user_ldata(user_id, data[3], "")
-        await database.update_user_data(user_id)
+            await database.update_user_data(user_id)
     elif data[2] == "reset":
         await query.answer("Reseted!", show_alert=True)
         if data[3] in user_dict:
             del user_dict[data[3]]
         else:
-            if user_dict and ("is_sudo" in user_dict or "is_auth" in user_dict):
-                for k in list(user_dict.keys()):
-                    if k not in ["is_sudo", "is_auth"]:
-                        del user_dict[k]
-            else:
-                user_dict.clear()
-            for fpath in [thumb_path, rclone_conf, token_pickle]:
-                if await aiopath.exists(fpath):
-                    await remove(fpath)
+            for k in list(user_dict.keys()):
+                if k not in [
+                    "SUDO",
+                    "AUTH",
+                    "THUMBNAIL",
+                    "RCLONE_CONFIG",
+                    "TOKEN_PICKLE",
+                ]:
+                    del user_dict[k]
             await update_user_settings(query)
         await database.update_user_data(user_id)
     elif data[2] == "view":

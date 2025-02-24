@@ -14,9 +14,9 @@ from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_message,
     edit_message,
-    five_minute_del,
     send_file,
     send_message,
 )
@@ -88,7 +88,7 @@ async def log(_, message):
         buttons=buttons.build_menu(1),
     )
     await delete_message(message)
-    await five_minute_del(reply_message)
+    await auto_delete_message(reply_message, time=300)
 
 
 @new_task
@@ -127,7 +127,7 @@ async def aeon_callback(_, query):
             )
             await query.edit_message_reply_markup(None)
             await delete_message(message)
-            await five_minute_del(reply_message)
+            await auto_delete_message(reply_message, time=300)
         except Exception as err:
             LOGGER.error(f"TG Log Display : {err!s}")
     elif data[2] == "private":

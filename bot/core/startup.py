@@ -52,10 +52,11 @@ async def update_aria2_options():
 
 
 async def load_settings():
-    if await aiopath.exists("Thumbnails"):
-        await rmtree("Thumbnails", ignore_errors=True)
     if not Config.DATABASE_URL:
         return
+    for p in ["thumbnails", "tokens", "rclone"]:
+        if await aiopath.exists(p):
+            await rmtree(p, ignore_errors=True)
     await database.connect()
     if database.db is not None:
         BOT_ID = Config.BOT_TOKEN.split(":", 1)[0]
@@ -71,7 +72,7 @@ async def load_settings():
                 upsert=True,
             )
         if old_config and old_config != config_file:
-            LOGGER.info("Replacing existing config file in Database")
+            LOGGER.info("Replacing existing deploy config in Database")
             await database.db.settings.deployConfig.replace_one(
                 {"_id": BOT_ID},
                 config_file,
@@ -108,28 +109,25 @@ async def load_settings():
             qbit_options.update(qbit_opt)
 
         if await database.db.users.find_one():
+            for p in ["thumbnails", "tokens", "rclone"]:
+                if not await aiopath.exists(p):
+                    await makedirs(p)
             rows = database.db.users.find({})
             async for row in rows:
                 uid = row["_id"]
                 del row["_id"]
-                thumb_path = f"Thumbnails/{uid}.jpg"
+                thumb_path = f"thumbnails/{uid}.jpg"
                 rclone_config_path = f"rclone/{uid}.conf"
                 token_path = f"tokens/{uid}.pickle"
                 if row.get("THUMBNAIL"):
-                    if not await aiopath.exists("Thumbnails"):
-                        await makedirs("Thumbnails")
                     async with aiopen(thumb_path, "wb+") as f:
                         await f.write(row["THUMBNAIL"])
                     row["THUMBNAIL"] = thumb_path
                 if row.get("RCLONE_CONFIG"):
-                    if not await aiopath.exists("rclone"):
-                        await makedirs("rclone")
                     async with aiopen(rclone_config_path, "wb+") as f:
                         await f.write(row["RCLONE_CONFIG"])
                     row["RCLONE_CONFIG"] = rclone_config_path
                 if row.get("TOKEN_PICKLE"):
-                    if not await aiopath.exists("tokens"):
-                        await makedirs("tokens")
                     async with aiopen(token_path, "wb+") as f:
                         await f.write(row["TOKEN_PICKLE"])
                     row["TOKEN_PICKLE"] = token_path

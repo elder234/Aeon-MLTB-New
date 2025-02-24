@@ -43,8 +43,8 @@ from bot.helper.mirror_leech_utils.download_utils.telegram_download import (
     TelegramDownloadHelper,
 )
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_links,
-    five_minute_del,
     get_tg_link_message,
     send_message,
 )
@@ -85,7 +85,7 @@ class Mirror(TaskListener):
         if error_msg:
             await delete_links(self.message)
             error = await send_message(self.message, error_msg, error_button)
-            return await five_minute_del(error)
+            return await auto_delete_message(error, time=300)
         user_id = self.message.from_user.id if self.message.from_user else ""
         args = {
             "-doc": False,
@@ -149,7 +149,9 @@ class Mirror(TaskListener):
         self.as_doc = args["-doc"]
         self.as_med = args["-med"]
         self.metadata = args["-md"]
-        self.folder_name = f"/{args['-m']}" if len(args["-m"]) > 0 else ""
+        self.folder_name = (
+            f"/{args['-m']}".rstrip("/") if len(args["-m"]) > 0 else ""
+        )
         self.bot_trans = args["-bt"]
         self.user_trans = args["-ut"]
 
@@ -247,7 +249,7 @@ class Mirror(TaskListener):
                 x = await send_message(self.message, f"ERROR: {e}")
                 await self.remove_from_same_dir()
                 await delete_links(self.message)
-                return await five_minute_del(x)
+                return await auto_delete_message(x, time=300)
 
         if isinstance(reply_to, list):
             self.bulk = reply_to
@@ -332,7 +334,7 @@ class Mirror(TaskListener):
             )
             await self.remove_from_same_dir()
             await delete_links(self.message)
-            return await five_minute_del(x)
+            return await auto_delete_message(x, time=300)
 
         if len(self.link) > 0:
             LOGGER.info(self.link)
@@ -343,7 +345,7 @@ class Mirror(TaskListener):
             x = await send_message(self.message, e)
             await self.remove_from_same_dir()
             await delete_links(self.message)
-            return await five_minute_del(x)
+            return await auto_delete_message(x, time=300)
 
         if (
             not self.is_jd
@@ -374,12 +376,12 @@ class Mirror(TaskListener):
                         x = await send_message(self.message, e)
                         await self.remove_from_same_dir()
                         await delete_links(self.message)
-                        return await five_minute_del(x)
+                        return await auto_delete_message(x, time=300)
                 except Exception as e:
                     x = await send_message(self.message, e)
                     await self.remove_from_same_dir()
                     await delete_links(self.message)
-                    return await five_minute_del(x)
+                    return await auto_delete_message(x, time=300)
 
         if file_ is not None:
             create_task(

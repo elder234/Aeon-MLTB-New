@@ -1,8 +1,10 @@
+from asyncio import TimeoutError
 from base64 import b64encode
 
 from aiofiles import open as aiopen
 from aiofiles.os import path as aiopath
 from aiofiles.os import remove
+from aiohttp.client_exceptions import ClientError
 
 from bot import LOGGER, task_dict, task_dict_lock
 from bot.core.config_manager import Config
@@ -49,7 +51,7 @@ async def add_aria2_download(listener, dpath, header, ratio, seed_time):
                 uris=[listener.link],
                 options=a2c_opt,
             )
-    except Exception as e:
+    except (TimeoutError, ClientError) as e:
         LOGGER.info(f"Aria2c Download Error: {e}")
         await listener.on_download_error(f"{e}")
         return

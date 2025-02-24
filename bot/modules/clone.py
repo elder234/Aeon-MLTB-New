@@ -32,9 +32,9 @@ from bot.helper.mirror_leech_utils.status_utils.gdrive_status import (
 )
 from bot.helper.mirror_leech_utils.status_utils.rclone_status import RcloneStatus
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_links,
     delete_message,
-    five_minute_del,
     send_message,
     send_status_message,
 )
@@ -72,7 +72,7 @@ class Clone(TaskListener):
         if error_msg:
             await delete_links(self.message)
             error = await send_message(self.message, error_msg, error_button)
-            return await five_minute_del(error)
+            return await auto_delete_message(error, time=300)
         args = {
             "link": "",
             "-i": 0,

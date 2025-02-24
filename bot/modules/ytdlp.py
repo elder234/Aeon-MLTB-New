@@ -27,10 +27,10 @@ from bot.helper.mirror_leech_utils.download_utils.yt_dlp_download import (
 )
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_links,
     delete_message,
     edit_message,
-    five_minute_del,
     send_message,
 )
 
@@ -306,7 +306,7 @@ class YtDlp(TaskListener):
         if error_msg:
             await delete_links(self.message)
             error = await send_message(self.message, error_msg, error_button)
-            return await five_minute_del(error)
+            return await auto_delete_message(error, time=300)
         args = {
             "-doc": False,
             "-med": False,
@@ -382,7 +382,9 @@ class YtDlp(TaskListener):
         self.as_doc = args["-doc"]
         self.as_med = args["-med"]
         self.metadata = args["-md"]
-        self.folder_name = f"/{args['-m']}" if len(args["-m"]) > 0 else ""
+        self.folder_name = (
+            f"/{args['-m']}".rstrip("/") if len(args["-m"]) > 0 else ""
+        )
         self.bot_trans = args["-bt"]
         self.user_trans = args["-ut"]
 

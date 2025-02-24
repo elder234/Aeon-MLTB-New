@@ -20,10 +20,10 @@ from .status_utils import time_to_seconds
 
 async def create_thumb(msg, _id=""):
     if not _id:
-        _id = msg.id
-        path = f"{DOWNLOAD_DIR}Thumbnails"
+        _id = time()
+        path = f"{DOWNLOAD_DIR}thumbnails"
     else:
-        path = "Thumbnails"
+        path = "thumbnails"
     await makedirs(path, exist_ok=True)
     photo_dir = await msg.download()
     output = ospath.join(path, f"{_id}.jpg")
@@ -166,7 +166,7 @@ async def take_ss(video_file, ss_nb) -> bool:
 
 
 async def get_audio_thumbnail(audio_file):
-    output_dir = f"{DOWNLOAD_DIR}Thumbnails"
+    output_dir = f"{DOWNLOAD_DIR}thumbnails"
     await makedirs(output_dir, exist_ok=True)
     output = ospath.join(output_dir, f"{time()}.jpg")
     cmd = [
@@ -199,7 +199,7 @@ async def get_audio_thumbnail(audio_file):
 
 
 async def get_video_thumbnail(video_file, duration):
-    output_dir = f"{DOWNLOAD_DIR}Thumbnails"
+    output_dir = f"{DOWNLOAD_DIR}thumbnails"
     await makedirs(output_dir, exist_ok=True)
     output = ospath.join(output_dir, f"{time()}.jpg")
     if duration is None:
@@ -247,7 +247,7 @@ async def get_multiple_frames_thumbnail(video_file, layout, keep_screenshots):
     dirpath = await take_ss(video_file, ss_nb)
     if not dirpath:
         return None
-    output_dir = f"{DOWNLOAD_DIR}Thumbnails"
+    output_dir = f"{DOWNLOAD_DIR}thumbnails"
     await makedirs(output_dir, exist_ok=True)
     output = ospath.join(output_dir, f"{time()}.jpg")
     cmd = [

@@ -45,7 +45,7 @@ async def search(key, site, message):
     LOGGER.info(f"PLUGINS Searching: {key} from {site}")
     search = await TorrentManager.qbittorrent.search.start(
         pattern=key,
-        plugins=site,
+        plugins=[site],
         category="all",
     )
     search_id = search.id

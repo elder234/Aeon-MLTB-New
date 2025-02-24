@@ -191,6 +191,11 @@ class TaskConfig:
             if "EXCLUDED_EXTENSIONS" not in self.user_dict
             else ["aria2", "!qB"]
         )
+        if not self.rc_flags:
+            if self.user_dict.get("RCLONE_FLAGS"):
+                self.rc_flags = self.user_dict["RCLONE_FLAGS"]
+            elif "RCLONE_FLAGS" not in self.user_dict and Config.RCLONE_FLAGS:
+                self.rc_flags = Config.RCLONE_FLAGS
         if self.link not in ["rcl", "gdl"]:
             if not self.is_jd:
                 if is_rclone_path(self.link):
@@ -349,6 +354,7 @@ class TaskConfig:
                         self.up_dest = self.up_dest.replace("u:", "", 1)
                         self.user_transmission = TgClient.IS_PREMIUM_USER
                     elif self.up_dest.startswith("h:"):
+                        self.up_dest = self.up_dest.replace("h:", "", 1)
                         self.user_transmission = TgClient.IS_PREMIUM_USER
                         self.hybrid_leech = self.user_transmission
                     if "|" in self.up_dest:
@@ -604,7 +610,8 @@ class TaskConfig:
             ):
                 for file_ in files:
                     if is_first_archive_split(file_) or (
-                        is_archive(file_) and not file_.lower().endswith(".rar")
+                        is_archive(file_)
+                        and not file_.strip().lower().endswith(".rar")
                     ):
                         f_path = ospath.join(dirpath, file_)
                         self.files_to_proceed.append(f_path)
@@ -624,7 +631,7 @@ class TaskConfig:
                 if self.is_cancelled:
                     return False
                 if is_first_archive_split(file_) or (
-                    is_archive(file_) and not file_.lower().endswith(".rar")
+                    is_archive(file_) and not file_.strip().lower().endswith(".rar")
                 ):
                     self.proceed_count += 1
                     f_path = ospath.join(dirpath, file_)
@@ -674,9 +681,9 @@ class TaskConfig:
                     delete_files = False
                 index = cmd.index("-i")
                 input_file = cmd[index + 1]
-                if input_file.endswith(".video"):
+                if input_file.lower().endswith(".video"):
                     ext = "video"
-                elif input_file.endswith(".audio"):
+                elif input_file.lower().endswith(".audio"):
                     ext = "audio"
                 elif "." not in input_file:
                     ext = "all"
@@ -695,7 +702,7 @@ class TaskConfig:
                             "audio",
                             "video",
                         ]
-                        and not dl_path.lower().endswith(ext)
+                        and not dl_path.strip().lower().endswith(ext)
                     ):
                         break
                     new_folder = ospath.splitext(dl_path)[0]
@@ -762,7 +769,7 @@ class TaskConfig:
                                     "audio",
                                     "video",
                                 ]
-                                and not f_path.lower().endswith(ext)
+                                and not f_path.strip().lower().endswith(ext)
                             ):
                                 continue
                             self.proceed_count += 1
@@ -929,10 +936,16 @@ class TaskConfig:
             if (
                 is_video
                 and vext
-                and not f_path.lower().endswith(f".{vext}")
+                and not f_path.strip().lower().endswith(f".{vext}")
                 and (
-                    (vstatus == "+" and f_path.lower().endswith(tuple(fvext)))
-                    or (vstatus == "-" and not f_path.lower().endswith(tuple(fvext)))
+                    (
+                        vstatus == "+"
+                        and f_path.strip().lower().endswith(tuple(fvext))
+                    )
+                    or (
+                        vstatus == "-"
+                        and not f_path.strip().lower().endswith(tuple(fvext))
+                    )
                     or not vstatus
                 )
             ):
@@ -941,10 +954,16 @@ class TaskConfig:
                 is_audio
                 and aext
                 and not is_video
-                and not f_path.lower().endswith(f".{aext}")
+                and not f_path.strip().lower().endswith(f".{aext}")
                 and (
-                    (astatus == "+" and f_path.lower().endswith(tuple(faext)))
-                    or (astatus == "-" and not f_path.lower().endswith(tuple(faext)))
+                    (
+                        astatus == "+"
+                        and f_path.strip().lower().endswith(tuple(faext))
+                    )
+                    or (
+                        astatus == "-"
+                        and not f_path.strip().lower().endswith(tuple(faext))
+                    )
                     or not astatus
                 )
             ):

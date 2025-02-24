@@ -20,8 +20,8 @@ from bot.helper.ext_utils.status_utils import (
     get_readable_time,
 )
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_message,
-    one_minute_del,
     send_message,
 )
 
@@ -75,7 +75,7 @@ async def bot_stats(_, message):
 """
     reply_message = await send_message(message, stats)
     await delete_message(message)
-    await one_minute_del(reply_message)
+    await auto_delete_message(reply_message)
 
 
 async def get_version_async(command, regex):

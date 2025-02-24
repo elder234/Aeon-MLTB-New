@@ -53,7 +53,7 @@ async def error_check(message):
 
         if not token_timeout or user_id in {
             Config.OWNER_ID,
-            user_data.get(user_id, {}).get("is_sudo"),
+            user_data.get(user_id, {}).get("SUDO"),
         }:
             try:
                 temp_msg = await message._client.send_message(
@@ -69,7 +69,7 @@ async def error_check(message):
     if user_id not in {
         Config.OWNER_ID,
         Config.RSS_CHAT,
-        user_data.get(user_id, {}).get("is_sudo"),
+        user_data.get(user_id, {}).get("SUDO"),
     }:
         token_msg, button = await token_check(user_id, button)
         if token_msg:

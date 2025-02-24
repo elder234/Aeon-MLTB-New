@@ -60,7 +60,7 @@ class TelegramUploader:
         self._path = path
         self._start_time = time()
         self._total_files = 0
-        self._thumb = self._listener.thumb or f"Thumbnails/{listener.user_id}.jpg"
+        self._thumb = self._listener.thumb or f"thumbnails/{listener.user_id}.jpg"
         self._msgs_dict = {}
         self._corrupted = 0
         self._is_corrupted = False
@@ -252,9 +252,9 @@ class TelegramUploader:
         if not res:
             return
         for dirpath, _, files in natsorted(await sync_to_async(walk, self._path)):
-            if dirpath.endswith("/yt-dlp-thumb"):
+            if dirpath.strip().endswith("/yt-dlp-thumb"):
                 continue
-            if dirpath.endswith("_ss"):
+            if dirpath.strip().endswith("_ss"):
                 await self._send_screenshots(dirpath, files)
                 await rmtree(dirpath, ignore_errors=True)
                 continue

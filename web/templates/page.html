@@ -354,8 +354,8 @@
     <header>
         <div class="container mx-auto px-4">
             <div class="flex flex-col sm:flex-row justify-between items-center">
-                <h1 class="text-3xl font-bold text-white mb-4 sm:mb-0">Torrent
-                    file selector</h1>
+                <h1 class="text-3xl font-bold text-white mb-4 sm:mb-0">🗂 Torrent
+                    File Selector</h1>
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center">
                         <span id="themeIcon" class="mr-2 text-white">🌙</span>
@@ -372,7 +372,9 @@
     <main class="flex-grow container mx-auto p-4">
         <div id="pinEntry" class="card p-6 mb-4 pin-entry">
             <h2 class="text-xl font-bold mb-4">Enter PIN</h2>
-            <input type="text" id="pinInput" title="Enter the code that you have got from Telegram to access the Torrent" class="bg-gray-700 text-white p-2 rounded mb-4 w-full" placeholder="Enter PIN">
+            <input type="text" id="pinInput"
+                title="Enter the code that you have got from Telegram to access the Torrent"
+                class="bg-gray-700 text-white p-2 rounded mb-4 w-full" placeholder="Enter PIN">
             <button id="submitPin" class="btn btn-primary">Submit</button>
         </div>
 
@@ -403,10 +405,11 @@
     <footer>
         <div class="container mx-auto px-4">
             <div class="footer-content flex flex-col sm:flex-row justify-between items-center">
-                <p class="text-white mb-4 sm:mb-0">&copy; 2024 Torrent file selector.
+                <p class="text-white mb-4 sm:mb-0">&copy; 2024 Torrent File Selector.
                     All rights reserved.</p>
                 <div class="footer-buttons flex space-x-4">
-                    <a href="https://github.com/anasty17/mirror-leech-telegram-bot" target="_blank" class="social-button">
+                    <a href="https://github.com/anasty17/mirror-leech-telegram-bot" target="_blank"
+                        class="social-button">
                         <i class="fab fa-github"></i>
                     </a>
                     <a href="https://www.instagram.com" target="_blank" class="social-button">
@@ -745,7 +748,6 @@
 
         function selectEverything() {
             const allSelected = files.every(node => node.type === 'folder' ? areAllChildrenSelected(node) : node.selected);
-
             function recursiveSelect(nodes, select) {
                 nodes.forEach(node => {
                     if (node.type === 'folder') {
@@ -809,7 +811,7 @@
                             renderFileTree(currentFolder ? currentFolder.children : files);
                         } else {
                             modalTitle.textContent = 'Error';
-                            modalBody.innerHTML = '<p>There was an error submitting your Rename. Please try again.</p>';
+                            modalBody.innerHTML = '<p>There was an error submitting your Rename. Try Again!.</p>';
                         }
                         modalFooter.innerHTML = '<button class="btn btn-primary" onclick="closeModal()">Okay</button>';
                         openModal();
@@ -845,7 +847,7 @@
                 return;
             }
             modalTitle.textContent = 'Processing...';
-            modalBody.innerHTML = `<p>Submitting your selection ${selectedCount.innerText} ... </p>`;
+            modalBody.innerHTML = `<p>Submitting, ${selectedCount.innerText} file(s)... </p>`;
             modalFooter.innerHTML = '';
             openModal();
             const requestUrl = `/app/files/torrent?gid=${urlParams.gid}&pin=${pinInput.value}&mode=selection`;
@@ -858,7 +860,7 @@
                     modalBody.innerHTML = '<p>Your selection has been submitted successfully.</p>';
                 } else {
                     modalTitle.textContent = 'Error';
-                    modalBody.innerHTML = '<p>There was an error submitting your selection. Please try again.</p>';
+                    modalBody.innerHTML = '<p>An error occurred while submitting your selection. Try Again!</p>';
                 }
                 modalFooter.innerHTML = '<button class="btn btn-primary" onclick="closeModal()">Okay</button>';
                 openModal();
@@ -875,25 +877,25 @@
             pinInput.blur();
             if (pinInput.value === '') {
                 modalTitle.textContent = 'Missing Pin';
-                modalBody.innerHTML = `<p>The <code>pin</code> is missing.</p>`;
+                modalBody.innerHTML = `<p>The pin is missing.</p>`;
                 modalFooter.innerHTML = '<button class="btn btn-primary" onClick="closeModal()">Try Again</button>';
                 openModal();
                 return false;
             }
             if (urlParams.gid == null || urlParams.gid === '') {
                 modalTitle.textContent = 'Missing parameter';
-                modalBody.innerHTML = `<p>The parameter <code>gid</code> is missing.</p>`;
+                modalBody.innerHTML = `<p>The parameter gid is missing.</p>`;
                 modalFooter.innerHTML = '<button class="btn btn-primary" onClick="closeModal()">Try Again</button>';
                 openModal();
                 return false;
             }
             const requestUrl = `/app/files/torrent?gid=${urlParams.gid}&pin=${pinInput.value}&mode=get`;
-            fetch(requestUrl).then(function(response) {
+            fetch(requestUrl).then(function (response) {
                 if (response.ok) {
                     return response.json().then(data => {
                         if (data.error) {
                             modalTitle.textContent = data.error;
-                            modalBody.innerHTML = `<p>${data.message}. Please try again.</p>`;
+                            modalBody.innerHTML = `<p>${data.message}. Try Again!</p>`;
                             modalFooter.innerHTML = '<button class="btn btn-primary" onclick="closeModal()">Retry</button>';
                             openModal();
                         } else {
@@ -911,14 +913,14 @@
                         }
                     });
                 } else {
-                    modalTitle.textContent = 'Something Went Wrong';
-                    modalBody.innerHTML = '<p>Please check console. Status Code: ' + response.status + '</p>';
+                    modalTitle.textContent = 'Something Went Wrong!';
+                    modalBody.innerHTML = '<p>Check console. Status Code: ' + response.status + '</p>';
                     modalFooter.innerHTML = '<button class="btn btn-primary" onclick="closeModal()">Retry</button>';
                     openModal();
                 }
             }).catch(error => {
                 modalTitle.textContent = 'Server Error';
-                modalBody.innerHTML = '<p>There was an error connecting to the server. Please try again.</p><br>' + error.message;
+                modalBody.innerHTML = '<p>There was an error connecting to the server. Try Again!</p><br>' + error.message;
                 modalFooter.innerHTML = '<button class="btn btn-primary" onclick="closeModal()">Retry</button>';
                 openModal();
             });

@@ -32,9 +32,9 @@ from bot.helper.mirror_leech_utils.status_utils.gdrive_status import (
 )
 from bot.helper.mirror_leech_utils.status_utils.rclone_status import RcloneStatus
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_links,
     delete_message,
-    five_minute_del,
     send_message,
     send_status_message,
 )
@@ -72,7 +72,7 @@ class Clone(TaskListener):
         if error_msg:
             await delete_links(self.message)
             error = await send_message(self.message, error_msg, error_button)
-            return await five_minute_del(error)
+            return await auto_delete_message(error, time=300)
         args = {
             "link": "",
             "-i": 0,
@@ -215,8 +215,6 @@ class Clone(TaskListener):
                     f"{remote}:{src_path}",
                     "-v",
                     "--log-systemd",
-                    "--log-file",
-                    "rlog.txt",
                 ]
                 res = await cmd_exec(cmd)
                 if res[2] != 0:
@@ -275,8 +273,6 @@ class Clone(TaskListener):
                 destination,
                 "-v",
                 "--log-systemd",
-                "--log-file",
-                "rlog.txt",
             ]
             cmd2 = [
                 "xone",
@@ -289,8 +285,6 @@ class Clone(TaskListener):
                 destination,
                 "-v",
                 "--log-systemd",
-                "--log-file",
-                "rlog.txt",
             ]
             cmd3 = [
                 "xone",
@@ -302,23 +296,21 @@ class Clone(TaskListener):
                 destination,
                 "-v",
                 "--log-systemd",
-                "--log-file",
-                "rlog.txt",
             ]
             res1, res2, res3 = await gather(
                 cmd_exec(cmd1),
                 cmd_exec(cmd2),
                 cmd_exec(cmd3),
             )
-            if res1[2] != res2[2] != res3[2] != 0:
+            if res1[2] != 0 or res2[2] != 0 or res3[2] != 0:
                 if res1[2] == -9:
                     return
                 files = None
                 folders = None
                 self.size = 0
-                LOGGER.error(
-                    f"Error: While getting rclone stat. Path: {destination}. Stderr: {res1[1][:4000]}",
-                )
+                error = res1[1] or res2[1] or res3[1]
+                msg = f"Error: While getting rclone stat. Path: {destination}. Stderr: {error[:4000]}"
+                await self.on_upload_error(msg)
             else:
                 files = len(res1[0].split("\n"))
                 folders = len(res2[0].strip().split("\n")) if res2[0] else 0

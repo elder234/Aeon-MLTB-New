@@ -107,21 +107,54 @@ class DbManager:
         if path == "config.py":
             await self.update_deploy_config()
 
+    async def update_nzb_config(self):
+        if self._return:
+            return
+        async with aiopen("sabnzbd/SABnzbd.ini", "rb+") as pf:
+            nzb_conf = await pf.read()
+        await self.db.settings.nzb.replace_one(
+            {"_id": TgClient.ID},
+            {"SABnzbd__ini": nzb_conf},
+            upsert=True,
+        )
+
     async def update_user_data(self, user_id):
         if self._return:
             return
         data = user_data.get(user_id, {})
-        if data.get("thumb"):
-            del data["thumb"]
-        if data.get("rclone_config"):
-            del data["rclone_config"]
-        if data.get("token_pickle"):
-            del data["token_pickle"]
-        if data.get("token"):
-            del data["token"]
-        if data.get("time"):
-            del data["time"]
-        await self.db.users.replace_one({"_id": user_id}, data, upsert=True)
+        data = data.copy()
+        for key in ("THUMBNAIL", "RCLONE_CONFIG", "TOKEN_PICKLE", "TOKEN", "TIME"):
+            data.pop(key, None)
+        pipeline = [
+            {
+                "$replaceRoot": {
+                    "newRoot": {
+                        "$mergeObjects": [
+                            data,
+                            {
+                                "$arrayToObject": {
+                                    "$filter": {
+                                        "input": {"$objectToArray": "$$ROOT"},
+                                        "as": "field",
+                                        "cond": {
+                                            "$in": [
+                                                "$$field.k",
+                                                [
+                                                    "THUMBNAIL",
+                                                    "RCLONE_CONFIG",
+                                                    "TOKEN_PICKLE",
+                                                ],
+                                            ],
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+        ]
+        await self.db.users.update_one({"_id": user_id}, pipeline, upsert=True)
 
     async def update_user_doc(self, user_id, key, path=""):
         if self._return:
@@ -129,13 +162,17 @@ class DbManager:
         if path:
             async with aiopen(path, "rb+") as doc:
                 doc_bin = await doc.read()
+            await self.db.users.update_one(
+                {"_id": user_id},
+                {"$set": {key: doc_bin}},
+                upsert=True,
+            )
         else:
-            doc_bin = ""
-        await self.db.users.update_one(
-            {"_id": user_id},
-            {"$set": {key: doc_bin}},
-            upsert=True,
-        )
+            await self.db.users.update_one(
+                {"_id": user_id},
+                {"$unset": {key: ""}},
+                upsert=True,
+            )
 
     async def rss_update_all(self):
         if self._return:
@@ -190,7 +227,7 @@ class DbManager:
             return
         await self.db.access_token.update_one(
             {"_id": user_id},
-            {"$set": {"token": token, "time": time}},
+            {"$set": {"TOKEN": token, "TIME": time}},
             upsert=True,
         )
 
@@ -199,7 +236,7 @@ class DbManager:
             return
         await self.db.access_token.update_one(
             {"_id": user_id},
-            {"$set": {"token": token}},
+            {"$set": {"TOKEN": token}},
             upsert=True,
         )
 
@@ -208,7 +245,7 @@ class DbManager:
             return None
         user_data = await self.db.access_token.find_one({"_id": user_id})
         if user_data:
-            return user_data.get("time")
+            return user_data.get("TIME")
         return None
 
     async def delete_user_token(self, user_id):
@@ -221,7 +258,7 @@ class DbManager:
             return None
         user_data = await self.db.access_token.find_one({"_id": user_id})
         if user_data:
-            return user_data.get("token")
+            return user_data.get("TOKEN")
         return None
 
     async def delete_all_access_tokens(self):

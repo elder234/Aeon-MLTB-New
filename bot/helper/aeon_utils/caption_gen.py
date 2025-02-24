@@ -42,7 +42,7 @@ async def generate_caption(filename, directory, caption_template):
     subtitle_metadata = [track for track in track_data if track["@type"] == "Text"]
 
     video_duration = round(float(video_metadata.get("Duration", 0)))
-    video_quality = get_video_quality(video_metadata.get("Height"))
+    video_quality = get_video_quality(video_metadata.get("Height", None))
 
     audio_languages = ", ".join(
         parse_audio_language("", audio)
@@ -74,18 +74,19 @@ async def generate_caption(filename, directory, caption_template):
 
 
 def get_video_quality(height):
-    quality_map = {
-        480: "480p",
-        540: "540p",
-        720: "720p",
-        1080: "1080p",
-        2160: "2160p",
-        4320: "4320p",
-        8640: "8640p",
-    }
-    for threshold, quality in sorted(quality_map.items()):
-        if height and int(height) <= threshold:
-            return quality
+    if height:
+        quality_map = {
+            480: "480p",
+            540: "540p",
+            720: "720p",
+            1080: "1080p",
+            2160: "2160p",
+            4320: "4320p",
+            8640: "8640p",
+        }
+        for threshold, quality in sorted(quality_map.items()):
+            if int(height) <= threshold:
+                return quality
     return "Unknown"
 
 

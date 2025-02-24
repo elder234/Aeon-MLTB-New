@@ -1,8 +1,4 @@
-from re import findall as re_findall
-
 from anytree import NodeMixin
-
-DOWNLOAD_DIR = "/usr/src/app/downloads/"
 
 
 class TorNode(NodeMixin):
@@ -38,12 +34,12 @@ def qb_get_folders(path):
     return path.split("/")
 
 
-def get_folders(path):
-    fs = re_findall(f"{DOWNLOAD_DIR}[0-9]+/(.+)", path)[0]
+def get_folders(path, root_path):
+    fs = path.split(root_path)[-1]
     return fs.split("/")
 
 
-def make_tree(res, tool=False):
+def make_tree(res, tool, root_path=""):
     if tool == "qbittorrent":
         parent = TorNode("QBITTORRENT")
         folder_id = 0
@@ -72,7 +68,7 @@ def make_tree(res, tool=False):
                     parent=previous_node,
                     size=i.size,
                     priority=i.priority,
-                    file_id=i.id,
+                    file_id=i.index,
                     progress=round(i.progress * 100, 5),
                 )
             else:
@@ -82,14 +78,14 @@ def make_tree(res, tool=False):
                     parent=parent,
                     size=i.size,
                     priority=i.priority,
-                    file_id=i.id,
+                    file_id=i.index,
                     progress=round(i.progress * 100, 5),
                 )
     elif tool == "aria2":
         parent = TorNode("ARIA2")
         folder_id = 0
         for i in res:
-            folders = get_folders(i["path"])
+            folders = get_folders(i["path"], root_path)
             priority = 1
             if i["selected"] == "false":
                 priority = 0
@@ -143,6 +139,22 @@ def make_tree(res, tool=False):
                     file_id=i["index"],
                     progress=progress,
                 )
+    else:
+        parent = TorNode("SABNZBD+")
+        priority = 1
+        for i in res["files"]:
+            TorNode(
+                i["filename"],
+                is_file=True,
+                parent=parent,
+                size=float(i["mb"]) * 1048576,
+                priority=priority,
+                file_id=i["nzf_id"],
+                progress=round(
+                    ((float(i["mb"]) - float(i["mbleft"])) / float(i["mb"])) * 100,
+                    5,
+                ),
+            )
 
     result = create_list(parent)
     return {"files": result, "engine": tool}

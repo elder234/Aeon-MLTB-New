@@ -41,7 +41,7 @@ async def cancel(_, message):
     elif len(msg) == 1:
         return
     if user_id not in (Config.OWNER_ID, task.listener.user_id) and (
-        user_id not in user_data or not user_data[user_id].get("is_sudo")
+        user_id not in user_data or not user_data[user_id].get("SUDO")
     ):
         return
     obj = task.task()

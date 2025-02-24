@@ -6,11 +6,11 @@ from aiofiles.os import listdir, makedirs, path, rename
 from aioshutil import rmtree
 
 from bot import LOGGER
-from bot.core.aeon_client import TgClient
-from bot.core.config_manager import Config
+from bot.helper.ext_utils.bot_utils import cmd_exec, new_task
 from myjd import MyJdApi
 
-from .bot_utils import cmd_exec, new_task
+from .aeon_client import TgClient
+from .config_manager import Config
 
 
 class JDownloader(MyJdApi):
@@ -86,7 +86,9 @@ class JDownloader(MyJdApi):
                 await rmtree("/JDownloader/tmp")
             except Exception:
                 pass
-        cmd = "java -Xms256m -Xmx500m -Dsun.jnu.encoding=UTF-8 -Dfile.encoding=UTF-8 -Djava.awt.headless=true -jar /JDownloader/JDownloader.jar"
+
+        cmd = "cpulimit -l 30 -- java -Xms256m -Xmx500m -Dsun.jnu.encoding=UTF-8 -Dfile.encoding=UTF-8 -Djava.awt.headless=true -jar /JDownloader/JDownloader.jar"
+
         self.is_connected = True
         _, __, code = await cmd_exec(cmd, shell=True)
         self.is_connected = False

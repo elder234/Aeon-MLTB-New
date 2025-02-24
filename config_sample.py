@@ -8,6 +8,7 @@ TELEGRAM_HASH = ""
 DATABASE_URL = ""
 
 # OPTIONAL CONFIG
+TG_PROXY = {}
 USER_SESSION_STRING = ""
 DOWNLOAD_DIR = "/usr/src/app/downloads/"
 CMD_SUFFIX = ""
@@ -16,12 +17,13 @@ SUDO_USERS = ""
 DEFAULT_UPLOAD = "rc"
 FILELION_API = ""
 STREAMWISH_API = ""
-EXTENSION_FILTER = ""
+EXCLUDED_EXTENSIONS = ""
 INCOMPLETE_TASK_NOTIFIER = False
 YT_DLP_OPTIONS = ""
 USE_SERVICE_ACCOUNTS = False
 NAME_SUBSTITUTE = ""
 FFMPEG_CMDS = {}
+UPLOAD_PATHS = {}
 
 # INKYPINKY
 DELETE_LINKS = False
@@ -34,6 +36,8 @@ METADATA_KEY = ""
 WATERMARK_KEY = ""
 LOG_CHAT_ID = 0
 LEECH_FILENAME_CAPTION = ""
+HYDRA_IP = ""
+HYDRA_API_KEY = ""
 
 # GDrive Tools
 GDRIVE_ID = ""
@@ -53,6 +57,28 @@ RCLONE_SERVE_PASS = ""
 MEGA_EMAIL = ""
 MEGA_PASSWORD = ""
 
+# Sabnzbd
+USENET_SERVERS = [
+    {
+        "name": "main",
+        "host": "",
+        "port": 563,
+        "timeout": 60,
+        "username": "",
+        "password": "",
+        "connections": 8,
+        "ssl": 1,
+        "ssl_verify": 2,
+        "ssl_ciphers": "",
+        "enable": 1,
+        "required": 0,
+        "optional": 0,
+        "retention": 0,
+        "send_group": 0,
+        "priority": 0,
+    },
+]
+
 # Update
 UPSTREAM_REPO = "https://github.com/AeonOrg/Aeon-MLTB"
 UPSTREAM_BRANCH = "main"
@@ -62,7 +88,7 @@ LEECH_SPLIT_SIZE = 0
 AS_DOCUMENT = False
 MEDIA_GROUP = False
 USER_TRANSMISSION = False
-MIXED_LEECH = False
+HYBRID_LEECH = False
 LEECH_FILENAME_PREFIX = ""
 LEECH_DUMP_CHAT = ""
 THUMBNAIL_LAYOUT = ""

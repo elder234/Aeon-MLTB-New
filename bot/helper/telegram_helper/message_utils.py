@@ -1,4 +1,4 @@
-from asyncio import sleep
+from asyncio import gather, sleep
 from re import match as re_match
 from time import time
 
@@ -153,21 +153,9 @@ async def send_rss(text, chat_id, thread_id):
         return str(e)
 
 
-async def delete_message(message):
-    try:
-        await message.delete()
-    except Exception as e:
-        LOGGER.error(str(e))
-
-
-async def one_minute_del(message):
-    await sleep(60)
-    await delete_message(message)
-
-
-async def five_minute_del(message):
-    await sleep(300)
-    await delete_message(message)
+async def delete_message(*args):
+    msgs = [msg.delete() for msg in args if msg]
+    await gather(*msgs, return_exceptions=True)
 
 
 async def delete_links(message):
@@ -178,12 +166,10 @@ async def delete_links(message):
     await delete_message(message)
 
 
-async def auto_delete_message(cmd_message=None, bot_message=None):
-    await sleep(60)
-    if cmd_message is not None:
-        await delete_message(cmd_message)
-    if bot_message is not None:
-        await delete_message(bot_message)
+async def auto_delete_message(*args, time=60):
+    if time and time > 0:
+        await sleep(time)
+        await delete_message(*args)
 
 
 async def delete_status():
@@ -288,17 +274,6 @@ async def get_tg_link_message(link, user_id=""):
             return (links, user_session) if links else (user_message, user_session)
         return None, None
     raise TgLinkException("Private: Please report!")
-
-
-async def check_permission(_, chat, uploader_id, __):
-    member = await chat.get_member(uploader_id)
-    if (
-        not member.privileges.can_manage_chat
-        or not member.privileges.can_delete_messages
-    ):
-        raise ValueError(
-            "You don't have enough privileges in this chat!",
-        )
 
 
 async def update_status_message(sid, force=False):

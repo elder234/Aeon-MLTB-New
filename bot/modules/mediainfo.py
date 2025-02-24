@@ -17,9 +17,9 @@ from bot.helper.ext_utils.telegraph_helper import telegraph
 from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_links,
     edit_message,
-    five_minute_del,
     send_message,
 )
 
@@ -40,7 +40,6 @@ def parseinfo(out, file_size):
                 tc += "</pre><br>"
             tc += f"<blockquote>{line.replace('Text', 'Subtitle')}</blockquote><pre>"
         if not skip:
-            # Replace File size line
             if line.startswith("File size"):
                 line = file_size_line
             key, sep, value = line.partition(":")
@@ -83,10 +82,8 @@ async def gen_mediainfo(message, link=None, media=None, msg=None):
                     async with aiopen(des_path, "ab") as f:
                         await f.write(chunk)
 
-        # Get MediaInfo
         stdout, _, _ = await cmd_exec(ssplit(f'mediainfo "{des_path}"'))
 
-        # Parse MediaInfo with updated file size
         tc = f"<h4>{ospath.basename(des_path)}</h4><br><br>"
         if stdout:
             tc += parseinfo(stdout, file_size)
@@ -112,7 +109,7 @@ async def mediainfo(_, message):
         if msg is not None:
             reply_message = await send_message(message, msg, buttons.build_menu(1))
             await delete_links(message)
-            await five_minute_del(reply_message)
+            await auto_delete_message(reply_message, time=300)
             return
     reply = message.reply_to_message
     help_msg = (

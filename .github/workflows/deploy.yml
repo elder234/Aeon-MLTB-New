@@ -35,7 +35,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout deploy branch
+      - name: Checkout
         uses: actions/checkout@v2
 
       - name: Delete unnecessary directories and files
@@ -50,12 +50,12 @@ jobs:
             fi
           done
 
-          # Delete a2c.conf if it exists
-          if [ -f "./a2c.conf" ]; then
-            echo "Deleting file: a2c.conf"
-            rm -f ./a2c.conf
+          # Delete aria.sh if it exists
+          if [ -f "./aria.sh" ]; then
+            echo "Deleting file: aria.sh"
+            rm -f ./aria.sh
           else
-            echo "File not found: a2c.conf"
+            echo "File not found: aria.sh"
           fi
 
       - name: Deploy to Heroku

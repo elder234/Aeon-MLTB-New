@@ -1,7 +1,6 @@
 from secrets import token_hex
 
 from bot import LOGGER, task_dict, task_dict_lock
-from bot.helper.ext_utils.bot_utils import sync_to_async
 from bot.helper.ext_utils.task_manager import (
     check_running_tasks,
     stop_duplicate_check,
@@ -57,4 +56,4 @@ async def add_direct_download(listener, path):
         if listener.multi <= 1:
             await send_status_message(listener.message)
 
-    await sync_to_async(directListener.download, contents)
+    await directListener.download(contents)

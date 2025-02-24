@@ -1,78 +1,81 @@
+import ast
 import os
 from importlib import import_module
 from typing import Any, ClassVar
 
 
 class Config:
-    AS_DOCUMENT = False
-    AUTHORIZED_CHATS = ""
-    BASE_URL = ""
-    BASE_URL_PORT = 80
-    BOT_TOKEN = ""
-    CMD_SUFFIX = ""
-    DATABASE_URL = ""
-    DEFAULT_UPLOAD = "rc"
-    DOWNLOAD_DIR = "/usr/src/app/downloads/"
-    EXTENSION_FILTER = ""
+    AS_DOCUMENT: bool = False
+    AUTHORIZED_CHATS: str = ""
+    BASE_URL: str = ""
+    BASE_URL_PORT: int = 80
+    BOT_TOKEN: str = ""
+    CMD_SUFFIX: str = ""
+    DATABASE_URL: str = ""
+    DEFAULT_UPLOAD: str = "rc"
+    EXCLUDED_EXTENSIONS: str = ""
     FFMPEG_CMDS: ClassVar[dict[str, list[str]]] = {}
-    FILELION_API = ""
-    GDRIVE_ID = ""
-    INCOMPLETE_TASK_NOTIFIER = False
-    INDEX_URL = ""
-    JD_EMAIL = ""
-    JD_PASS = ""
-    IS_TEAM_DRIVE = False
-    LEECH_DUMP_CHAT = ""
-    LEECH_FILENAME_PREFIX = ""
-    LEECH_SPLIT_SIZE = 2097152000
-    MEDIA_GROUP = False
-    MIXED_LEECH = False
-    NAME_SUBSTITUTE = ""
-    OWNER_ID = 0
-    QUEUE_ALL = 0
-    QUEUE_DOWNLOAD = 0
-    QUEUE_UPLOAD = 0
-    RCLONE_FLAGS = ""
-    RCLONE_PATH = ""
-    RCLONE_SERVE_URL = ""
-    RCLONE_SERVE_USER = ""
-    RCLONE_SERVE_PASS = ""
-    RCLONE_SERVE_PORT = 8080
-    RSS_CHAT = ""
-    RSS_DELAY = 600
-    RSS_SIZE_LIMIT = 0
-    STOP_DUPLICATE = False
-    STREAMWISH_API = ""
-    SUDO_USERS = ""
-    TELEGRAM_API = 0
-    TELEGRAM_HASH = ""
-    THUMBNAIL_LAYOUT = ""
-    TORRENT_TIMEOUT = 0
-    USER_TRANSMISSION = False
-    UPSTREAM_REPO = ""
-    UPSTREAM_BRANCH = "main"
-    USER_SESSION_STRING = ""
-    USE_SERVICE_ACCOUNTS = False
-    WEB_PINCODE = False
-    YT_DLP_OPTIONS = ""
+    FILELION_API: str = ""
+    GDRIVE_ID: str = ""
+    INCOMPLETE_TASK_NOTIFIER: bool = False
+    INDEX_URL: str = ""
+    JD_EMAIL: str = ""
+    JD_PASS: str = ""
+    IS_TEAM_DRIVE: bool = False
+    LEECH_DUMP_CHAT: str = ""
+    LEECH_FILENAME_PREFIX: str = ""
+    LEECH_SPLIT_SIZE: int = 2097152000
+    MEDIA_GROUP: bool = False
+    HYBRID_LEECH: bool = False
+    NAME_SUBSTITUTE: str = ""
+    OWNER_ID: int = 0
+    QUEUE_ALL: int = 0
+    QUEUE_DOWNLOAD: int = 0
+    QUEUE_UPLOAD: int = 0
+    RCLONE_FLAGS: str = ""
+    RCLONE_PATH: str = ""
+    RCLONE_SERVE_URL: str = ""
+    RCLONE_SERVE_USER: str = ""
+    RCLONE_SERVE_PASS: str = ""
+    RCLONE_SERVE_PORT: int = 8080
+    RSS_CHAT: str = ""
+    RSS_DELAY: int = 600
+    RSS_SIZE_LIMIT: int = 0
+    STOP_DUPLICATE: bool = False
+    STREAMWISH_API: str = ""
+    SUDO_USERS: str = ""
+    TELEGRAM_API: int = 0
+    TELEGRAM_HASH: str = ""
+    TG_PROXY = None
+    THUMBNAIL_LAYOUT: str = ""
+    TORRENT_TIMEOUT: int = 0
+    UPLOAD_PATHS = {}
+    UPSTREAM_REPO: str = ""
+    USENET_SERVERS = []
+    UPSTREAM_BRANCH: str = "main"
+    USER_SESSION_STRING: str = ""
+    USER_TRANSMISSION: bool = False
+    USE_SERVICE_ACCOUNTS: bool = False
+    WEB_PINCODE: bool = False
+    YT_DLP_OPTIONS: str = {}
 
     # INKYPINKY
-    METADATA_KEY = ""
-    WATERMARK_KEY = ""
-    SET_COMMANDS = True
-    TOKEN_TIMEOUT = 0
-    PAID_CHANNEL_ID = 0
-    PAID_CHANNEL_LINK = ""
-    DELETE_LINKS = False
-    FSUB_IDS = ""
-    LOG_CHAT_ID = 0
-    LEECH_FILENAME_CAPTION = ""
+    METADATA_KEY: str = ""
+    WATERMARK_KEY: str = ""
+    SET_COMMANDS: bool = True
+    TOKEN_TIMEOUT: int = 0
+    PAID_CHANNEL_ID: int = 0
+    PAID_CHANNEL_LINK: str = ""
+    DELETE_LINKS: bool = False
+    FSUB_IDS: str = ""
+    LOG_CHAT_ID: int = 0
+    LEECH_FILENAME_CAPTION: str = ""
+    HYDRA_IP: str = ""
+    HYDRA_API_KEY: str = ""
 
     @classmethod
     def get(cls, key):
-        if hasattr(cls, key):
-            return getattr(cls, key)
-        raise KeyError(f"{key} is not a valid configuration key.")
+        return getattr(cls, key) if hasattr(cls, key) else None
 
     @classmethod
     def set(cls, key, value):
@@ -85,7 +88,7 @@ class Config:
     def get_all(cls):
         return {
             key: getattr(cls, key)
-            for key in cls.__dict__
+            for key in sorted(cls.__dict__)
             if not key.startswith("__") and not callable(getattr(cls, key))
         }
 
@@ -115,6 +118,12 @@ class Config:
                         and value
                     ):
                         value = value.strip("/")
+                    elif attr == "USENET_SERVERS":
+                        try:
+                            if not value[0].get("host"):
+                                continue
+                        except Exception:
+                            continue
                     setattr(cls, attr, value)
 
     @classmethod
@@ -133,6 +142,12 @@ class Config:
                     and value
                 ):
                     value = value.strip("/")
+                elif key == "USENET_SERVERS":
+                    try:
+                        if not value[0].get("host"):
+                            value = []
+                    except Exception:
+                        value = []
                 setattr(cls, key, value)
 
 
@@ -149,18 +164,32 @@ class SystemEnv:
     @classmethod
     def _convert_type(cls, key: str, value: str) -> Any:
         original_value = getattr(Config, key, None)
+
         if original_value is None:
             return value
+
         if isinstance(original_value, bool):
             return value.lower() in ("true", "1", "yes")
+
         if isinstance(original_value, int):
             try:
                 return int(value)
             except ValueError:
                 return original_value
+
         if isinstance(original_value, float):
             try:
                 return float(value)
             except ValueError:
                 return original_value
+
+        if isinstance(original_value, list):
+            return value.split(",")
+
+        if isinstance(original_value, dict):
+            try:
+                return ast.literal_eval(value)
+            except (SyntaxError, ValueError):
+                return original_value
+
         return value

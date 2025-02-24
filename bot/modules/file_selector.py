@@ -3,20 +3,10 @@ import contextlib
 from aiofiles.os import path as aiopath
 from aiofiles.os import remove
 
-from bot import (
-    LOGGER,
-    aria2,
-    task_dict,
-    task_dict_lock,
-    user_data,
-    xnox_client,
-)
+from bot import LOGGER, sabnzbd_client, task_dict, task_dict_lock, user_data
 from bot.core.config_manager import Config
-from bot.helper.ext_utils.bot_utils import (
-    bt_selection_buttons,
-    new_task,
-    sync_to_async,
-)
+from bot.core.torrent_manager import TorrentManager
+from bot.helper.ext_utils.bot_utils import bt_selection_buttons, new_task
 from bot.helper.ext_utils.status_utils import MirrorStatus, get_task_by_gid
 from bot.helper.telegram_helper.message_utils import (
     delete_message,
@@ -47,25 +37,25 @@ async def select(_, message):
     elif len(msg) == 1:
         msg = (
             "Reply to an active /cmd which was used to start the download or add gid along with cmd\n\n"
-            + "This command mainly for selection incase you decided to select files from already added torrent. "
+            + "This command mainly for selection incase you decided to select files from already added torrent/nzb. "
             + "But you can always use /cmd with arg `s` to select files before download start."
         )
         await send_message(message, msg)
         return
 
     if user_id not in (Config.OWNER_ID, task.listener.user_id) and (
-        user_id not in user_data or not user_data[user_id].get("is_sudo")
+        user_id not in user_data or not user_data[user_id].get("SUDO")
     ):
         await send_message(message, "This task is not for you!")
         return
-    if await sync_to_async(task.status) not in [
+    if await task.status() not in [
         MirrorStatus.STATUS_DOWNLOAD,
         MirrorStatus.STATUS_PAUSED,
         MirrorStatus.STATUS_QUEUEDL,
     ]:
         await send_message(
             message,
-            "Task should be in download or pause (incase message deleted by wrong) or queued status (incase you have used torrent file)!",
+            "Task should be in download or pause (incase message deleted by wrong) or queued status (incase you have used torrent or nzb file)!",
         )
         return
     if task.name().startswith("[METADATA]") or task.name().startswith("Trying"):
@@ -73,26 +63,24 @@ async def select(_, message):
         return
 
     try:
-        id_ = task.gid()
-        if task.listener.is_qbit:
-            if not task.queued:
-                await sync_to_async(task.update)
+        if not task.queued:
+            await task.update()
+            id_ = task.gid()
+            if task.listener.is_nzb:
+                await sabnzbd_client.pause_job(id_)
+            elif task.listener.is_qbit:
                 id_ = task.hash()
-                await sync_to_async(
-                    xnox_client.torrents_stop,
-                    torrent_hashes=id_,
-                )
-        elif not task.queued:
-            await sync_to_async(task.update)
-            try:
-                await sync_to_async(aria2.client.force_pause, id_)
-            except Exception as e:
-                LOGGER.error(
-                    f"{e} Error in pause, this mostly happens after abuse aria2",
-                )
+                await TorrentManager.qbittorrent.torrents.stop([id_])
+            else:
+                try:
+                    await TorrentManager.aria2.forcePause(id_)
+                except Exception as e:
+                    LOGGER.error(
+                        f"{e} Error in pause, this mostly happens after abuse aria2",
+                    )
         task.listener.select = True
     except Exception:
-        await send_message(message, "This is not a bittorrent task!")
+        await send_message(message, "This is not a bittorrent or sabnzbd task!")
         return
 
     SBUTTONS = bt_selection_buttons(id_)
@@ -120,16 +108,10 @@ async def confirm_selection(_, query):
         if hasattr(task, "seeding"):
             if task.listener.is_qbit:
                 tor_info = (
-                    await sync_to_async(
-                        xnox_client.torrents_info,
-                        torrent_hash=id_,
-                    )
+                    await TorrentManager.qbittorrent.torrents.info(hashes=[id_])
                 )[0]
                 path = tor_info.content_path.rsplit("/", 1)[0]
-                res = await sync_to_async(
-                    xnox_client.torrents_files,
-                    torrent_hash=id_,
-                )
+                res = await TorrentManager.qbittorrent.torrents.files(id_)
                 for f in res:
                     if f.priority == 0:
                         f_paths = [f"{path}/{f.name}", f"{path}/{f.name}.!qB"]
@@ -138,23 +120,22 @@ async def confirm_selection(_, query):
                                 with contextlib.suppress(Exception):
                                     await remove(f_path)
                 if not task.queued:
-                    await sync_to_async(
-                        xnox_client.torrents_start,
-                        torrent_hashes=id_,
-                    )
+                    await TorrentManager.qbittorrent.torrents.start([id_])
             else:
-                res = await sync_to_async(aria2.client.get_files, id_)
+                res = await TorrentManager.aria2.getFiles(id_)
                 for f in res:
                     if f["selected"] == "false" and await aiopath.exists(f["path"]):
                         with contextlib.suppress(Exception):
                             await remove(f["path"])
                 if not task.queued:
                     try:
-                        await sync_to_async(aria2.client.unpause, id_)
+                        await TorrentManager.aria2.unpause(id_)
                     except Exception as e:
                         LOGGER.error(
                             f"{e} Error in resume, this mostly happens after abuse aria2. Try to use select cmd again!",
                         )
+        elif task.listener.is_nzb:
+            await sabnzbd_client.resume_job(id_)
         await send_status_message(message)
         await delete_message(message)
     else:

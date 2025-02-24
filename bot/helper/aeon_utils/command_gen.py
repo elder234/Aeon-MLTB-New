@@ -1,9 +1,8 @@
 import json
-import os
 from asyncio import create_subprocess_exec
 from asyncio.subprocess import PIPE
 
-from bot import LOGGER
+from bot import LOGGER, cpu_no
 
 
 async def get_streams(file):
@@ -33,7 +32,7 @@ async def get_streams(file):
         return None
 
 
-# Lots of work need
+# TODO Lots of work need
 async def get_watermark_cmd(file, key):
     temp_file = f"{file}.temp.mkv"
     font_path = "default.otf"
@@ -52,7 +51,7 @@ async def get_watermark_cmd(file, key):
         # "-preset",
         # "ultrafast",
         "-threads",
-        f"{max(1, os.cpu_count() // 2)}",
+        f"{max(1, cpu_no // 2)}",
         temp_file,
     ]
 
@@ -154,11 +153,11 @@ async def get_metadata_cmd(file_path, key):
         else:
             cmd.extend(["-map", f"0:{stream_index}"])
 
-    cmd.extend(["-threads", f"{max(1, os.cpu_count() // 2)}", temp_file])
+    cmd.extend(["-threads", f"{max(1, cpu_no // 2)}", temp_file])
     return cmd, temp_file
 
 
-# later
+# TODO later
 async def get_embed_thumb_cmd(file, attachment_path):
     temp_file = f"{file}.temp.mkv"
     attachment_ext = attachment_path.split(".")[-1].lower()
@@ -186,7 +185,7 @@ async def get_embed_thumb_cmd(file, attachment_path):
         "-map",
         "0",
         "-threads",
-        f"{max(1, os.cpu_count() // 2)}",
+        f"{max(1, cpu_no // 2)}",
         temp_file,
     ]
 

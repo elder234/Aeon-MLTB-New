@@ -16,6 +16,7 @@ class SevenZStatus:
         self._gid = gid
         self._start_time = time()
         self._cstatus = status
+        self.tool = "7z"
 
     def gid(self):
         return self._gid
@@ -23,7 +24,7 @@ class SevenZStatus:
     def _speed_raw(self):
         return self._obj.processed_bytes / (time() - self._start_time)
 
-    async def progress(self):
+    def progress(self):
         return self._obj.progress
 
     def speed(self):

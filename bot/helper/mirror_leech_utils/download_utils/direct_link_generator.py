@@ -1,5 +1,5 @@
 # ruff: noqa
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from hashlib import sha256
 from http.cookiejar import MozillaCookieJar
 from json import loads
@@ -33,6 +33,8 @@ def direct_link_generator(link):
         return yandex_disk(link)
     if "buzzheavier.com" in domain:
         return buzzheavier(link)
+    if "fuckingfast.co" in domain:
+        return fuckingfast_dl(link)
     if "mediafire.com" in domain:
         return mediafire(link)
     if "osdn.net" in domain:
@@ -75,6 +77,8 @@ def direct_link_generator(link):
         return mp4upload(link)
     if "berkasdrive.com" in domain:
         return berkasdrive(link)
+    if "www.swisstransfer.com" in domain:
+        return swisstransfer(link)
     if any(x in domain for x in ["akmfiles.com", "akmfls.xyz"]):
         return akmfiles(link)
     if any(
@@ -255,6 +259,35 @@ def buzzheavier(url):
         session.close()
 
 
+def fuckingfast_dl(url):
+    """
+    Generate a direct download link for fuckingfast.co URLs.
+    @param url: URL from fuckingfast.co
+    @return: Direct download link
+    """
+    session = Session()
+    url = url.strip()
+
+    try:
+        response = session.get(url)
+        content = response.text
+        pattern = r'window\.open\((["\'])(https://fuckingfast\.co/dl/[^"\']+)\1'
+        match = search(pattern, content)
+
+        if not match:
+            raise DirectDownloadLinkException(
+                "ERROR: Could not find download link in page"
+            )
+
+        direct_url = match.group(2)
+        return direct_url
+
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: {str(e)}") from e
+    finally:
+        session.close()
+
+
 def mediafire(url, session=None):
     if "/folder/" in url:
         return mediafireFolder(url)
@@ -377,6 +410,8 @@ def hxfile(url):
     cookies = {cookie.name: cookie.value for cookie in jar}
     with Session() as session:
         try:
+            if url.endswith(".html"):
+                url = url[:-5]
             file_code = url.split("/")[-1]
             html = HTML(
                 session.post(
@@ -1791,3 +1826,102 @@ def berkasdrive(url):
     if link := html.xpath("//script")[0].text.split('"')[1]:
         return b64decode(link).decode("utf-8")
     raise DirectDownloadLinkException("ERROR: File Not Found!")
+
+
+def swisstransfer(link):
+    matched_link = match(
+        r"https://www\.swisstransfer\.com/d/([\w-]+)(?:\:\:(\w+))?", link
+    )
+    if not matched_link:
+        raise DirectDownloadLinkException(
+            f"ERROR: Invalid SwissTransfer link format {link}"
+        )
+
+    transfer_id, password = matched_link.groups()
+    password = password or ""
+
+    def encode_password(password):
+        return (
+            b64encode(password.encode("utf-8")).decode("utf-8") if password else ""
+        )
+
+    def getfile(transfer_id, password):
+        url = f"https://www.swisstransfer.com/api/links/{transfer_id}"
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Authorization": encode_password(password) if password else "",
+            "Content-Type": "application/json" if not password else "",
+        }
+        response = get(url, headers=headers)
+
+        if response.status_code == 200:
+            try:
+                return response.json(), headers
+            except ValueError:
+                raise DirectDownloadLinkException(
+                    f"ERROR: Error parsing JSON response {response.text}"
+                )
+        raise DirectDownloadLinkException(
+            f"ERROR: Error fetching file details {response.status_code}, {response.text}"
+        )
+
+    def gettoken(password, containerUUID, fileUUID):
+        url = "https://www.swisstransfer.com/api/generateDownloadToken"
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Content-Type": "application/json",
+        }
+        body = {
+            "password": password,
+            "containerUUID": containerUUID,
+            "fileUUID": fileUUID,
+        }
+
+        response = post(url, headers=headers, json=body)
+
+        if response.status_code == 200:
+            return response.text.strip().replace('"', "")
+        raise DirectDownloadLinkException(
+            f"ERROR: Error generating download token {response.status_code}, {response.text}"
+        )
+
+    data, headers = getfile(transfer_id, password)
+    if not data:
+        return None
+
+    try:
+        container_uuid = data["data"]["containerUUID"]
+        download_host = data["data"]["downloadHost"]
+        files = data["data"]["container"]["files"]
+        folder_name = data["data"]["container"]["message"] or "unknown"
+    except (KeyError, IndexError, TypeError) as e:
+        raise DirectDownloadLinkException(f"ERROR: Error parsing file details {e}")
+
+    total_size = sum(file["fileSizeInBytes"] for file in files)
+
+    if len(files) == 1:
+        file = files[0]
+        file_uuid = file["UUID"]
+        token = gettoken(password, container_uuid, file_uuid)
+        download_url = f"https://{download_host}/api/download/{transfer_id}/{file_uuid}?token={token}"
+        return download_url, "User-Agent:Mozilla/5.0"
+
+    contents = []
+    for file in files:
+        file_uuid = file["UUID"]
+        file_name = file["fileName"]
+        file_size = file["fileSizeInBytes"]
+
+        token = gettoken(password, container_uuid, file_uuid)
+        if not token:
+            continue
+
+        download_url = f"https://{download_host}/api/download/{transfer_id}/{file_uuid}?token={token}"
+        contents.append({"filename": file_name, "path": "", "url": download_url})
+
+    return {
+        "contents": contents,
+        "title": folder_name,
+        "total_size": total_size,
+        "header": "User-Agent:Mozilla/5.0",
+    }

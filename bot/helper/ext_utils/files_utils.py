@@ -1,13 +1,10 @@
 from asyncio import create_subprocess_exec, sleep, wait_for
 from asyncio.subprocess import PIPE
-from os import makedirs, readlink, walk
 from os import path as ospath
+from os import readlink, walk
 from re import IGNORECASE, escape
 from re import search as re_search
 from re import split as re_split
-from shutil import rmtree
-from subprocess import run as srun
-from sys import exit
 
 from aiofiles.os import (
     listdir,
@@ -27,8 +24,8 @@ from aiofiles.os import (
 from aioshutil import rmtree as aiormtree
 from magic import Magic
 
-from bot import LOGGER, aria2, xnox_client
-from bot.core.config_manager import Config
+from bot import DOWNLOAD_DIR, LOGGER
+from bot.core.torrent_manager import TorrentManager
 
 from .bot_utils import cmd_exec, sync_to_async
 from .exceptions import NotSupportedExtractionArchive
@@ -112,7 +109,7 @@ def is_first_archive_split(file):
 
 
 def is_archive(file):
-    return file.lower().endswith(tuple(ARCH_EXT))
+    return file.strip().lower().endswith(tuple(ARCH_EXT))
 
 
 def is_archive_split(file):
@@ -140,29 +137,14 @@ async def clean_download(path):
             LOGGER.error(str(e))
 
 
-def clean_all():
-    aria2.remove_all(True)
-    xnox_client.torrents_delete(torrent_hashes="all")
+async def clean_all():
+    await TorrentManager.remove_all()
     try:
         LOGGER.info("Cleaning Download Directory")
-        rmtree(Config.DOWNLOAD_DIR, ignore_errors=True)
+        await aiormtree(DOWNLOAD_DIR, ignore_errors=True)
     except Exception:
         pass
-    makedirs(Config.DOWNLOAD_DIR, exist_ok=True)
-
-
-def exit_clean_up(_, __):
-    try:
-        LOGGER.info("Please wait! Bot clean up and stop the running downloads...")
-        clean_all()
-        srun(
-            ["pkill", "-9", "-f", "gunicorn|xria|xnox|xtra|xone|java|7z|split"],
-            check=False,
-        )
-        exit(0)
-    except KeyboardInterrupt:
-        LOGGER.warning("Force Exiting before the cleanup finishes!")
-        exit(1)
+    await aiomakedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
 async def clean_unwanted(opath):
@@ -170,11 +152,9 @@ async def clean_unwanted(opath):
     for dirpath, _, files in await sync_to_async(walk, opath, topdown=False):
         for filee in files:
             f_path = ospath.join(dirpath, filee)
-            if filee.endswith(".!qB") or (
-                filee.endswith(".parts") and filee.startswith(".")
-            ):
+            if filee.strip().endswith(".parts") and filee.startswith("."):
                 await remove(f_path)
-        if dirpath.endswith(".unwanted"):
+        if dirpath.strip().endswith(".unwanted"):
             await aiormtree(dirpath, ignore_errors=True)
     for dirpath, _, __ in await sync_to_async(walk, opath, topdown=False):
         if not await listdir(dirpath):
@@ -196,21 +176,18 @@ async def get_path_size(opath):
     return total_size
 
 
-async def count_files_and_folders(opath, extension_filter):
+async def count_files_and_folders(opath):
     total_files = 0
     total_folders = 0
     for _, dirs, files in await sync_to_async(walk, opath):
         total_files += len(files)
-        for f in files:
-            if f.lower().endswith(tuple(extension_filter)):
-                total_files -= 1
         total_folders += len(dirs)
     return total_folders, total_files
 
 
 def get_base_name(orig_path):
     extension = next(
-        (ext for ext in ARCH_EXT if orig_path.lower().endswith(ext)),
+        (ext for ext in ARCH_EXT if orig_path.strip().lower().endswith(ext)),
         "",
     )
     if extension != "":
@@ -240,6 +217,13 @@ def get_mime_type(file_path):
     mime = Magic(mime=True)
     mime_type = mime.from_file(file_path)
     return mime_type or "text/plain"
+
+
+async def remove_excluded_files(fpath, ee):
+    for root, _, files in await sync_to_async(walk, fpath):
+        for f in files:
+            if f.strip().lower().endswith(tuple(ee)):
+                await remove(ospath.join(root, f))
 
 
 async def join_files(opath):
@@ -317,7 +301,7 @@ class SevenZ:
         return self._percentage
 
     async def _sevenz_progress(self):
-        pattern = r"(\d+)\s+bytes"
+        pattern = r"(\d+)\s+bytes|Total Physical Size\s*=\s*(\d+)"
         while not (
             self._listener.subproc.returncode is not None
             or self._listener.is_cancelled
@@ -329,7 +313,7 @@ class SevenZ:
                 break
             line = line.decode().strip()
             if match := re_search(pattern, line):
-                self._listener.subsize = int(match.group(1))
+                self._listener.subsize = int(match[1] or match[2])
             await sleep(0.05)
         s = b""
         while not (
@@ -412,8 +396,6 @@ class SevenZ:
             "-bse1",
             "-bb3",
         ]
-        if not self._listener.is_file:
-            cmd.extend(f"-xr!*.{ext}" for ext in self._listener.extension_filter)
         if self._listener.is_leech and int(size) > self._listener.split_size:
             if not pswd:
                 del cmd[4]

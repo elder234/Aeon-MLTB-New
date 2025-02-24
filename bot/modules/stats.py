@@ -20,14 +20,15 @@ from bot.helper.ext_utils.status_utils import (
     get_readable_time,
 )
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_message,
-    one_minute_del,
     send_message,
 )
 
 commands = {
     "aria2": (["xria", "--version"], r"aria2 version ([\d.]+)"),
     "qBittorrent": (["xnox", "--version"], r"qBittorrent v([\d.]+)"),
+    "SABnzbd+": (["xnzb", "--version"], r"xnzb-([\d.]+)"),
     "python": (["python3", "--version"], r"Python ([\d.]+)"),
     "rclone": (["xone", "--version"], r"rclone v([\d.]+)"),
     "yt-dlp": (["yt-dlp", "--version"], r"([\d.]+)"),
@@ -58,7 +59,7 @@ async def bot_stats(_, message):
 <b>DISK:</b> {disk}%
 
 <b>Physical Cores:</b> {cpu_count(logical=False)}
-<b>Total Cores:</b> {cpu_count(logical=True)}
+<b>Total Cores:</b> {cpu_count()}
 <b>SWAP:</b> {get_readable_file_size(swap.total)} | <b>Used:</b> {swap.percent}%
 
 <b>Memory Total:</b> {get_readable_file_size(memory.total)}
@@ -68,6 +69,7 @@ async def bot_stats(_, message):
 <b>python:</b> {commands["python"]}
 <b>aria2:</b> {commands["aria2"]}
 <b>qBittorrent:</b> {commands["qBittorrent"]}
+<b>SABnzbd+:</b> {commands["SABnzbd+"]}
 <b>rclone:</b> {commands["rclone"]}
 <b>yt-dlp:</b> {commands["yt-dlp"]}
 <b>ffmpeg:</b> {commands["ffmpeg"]}
@@ -75,7 +77,7 @@ async def bot_stats(_, message):
 """
     reply_message = await send_message(message, stats)
     await delete_message(message)
-    await one_minute_del(reply_message)
+    await auto_delete_message(reply_message)
 
 
 async def get_version_async(command, regex):

@@ -8,9 +8,11 @@ class BotCommands:
     StartCommand = "start"
     MirrorCommand = [f"mirror{i}", f"m{i}"]
     JdMirrorCommand = [f"jdmirror{i}", f"jm{i}"]
+    NzbMirrorCommand = [f"nzbmirror{i}", f"nm{i}"]
     YtdlCommand = [f"ytdl{i}", f"y{i}"]
     LeechCommand = [f"leech{i}", f"l{i}"]
     JdLeechCommand = [f"jdleech{i}", f"jl{i}"]
+    NzbLeechCommand = [f"nzbleech{i}", f"nl{i}"]
     YtdlLeechCommand = [f"ytdlleech{i}", f"yl{i}"]
     CloneCommand = f"clone{i}"
     MediaInfoCommand = f"mediainfo{i}"
@@ -20,10 +22,11 @@ class BotCommands:
     ForceStartCommand = [f"forcestart{i}", f"fs{i}"]
     ListCommand = f"list{i}"
     SearchCommand = f"search{i}"
+    HydraSearchCommamd = f"nzbsearch{i}"
     StatusCommand = f"status{i}"
     UsersCommand = f"users{i}"
-    AuthorizeCommand = f"authorize{i}"
-    UnAuthorizeCommand = f"unauthorize{i}"
+    AuthorizeCommand = f"auth{i}"
+    UnAuthorizeCommand = f"unauth{i}"
     AddSudoCommand = f"addsudo{i}"
     RmSudoCommand = f"rmsudo{i}"
     PingCommand = f"ping{i}"

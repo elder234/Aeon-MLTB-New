@@ -48,7 +48,7 @@ By reply to task cmd:
         await send_message(message, msg)
         return
     if user_id not in (Config.OWNER_ID, task.listener.user_id) and (
-        user_id not in user_data or not user_data[user_id].get("is_sudo")
+        user_id not in user_data or not user_data[user_id].get("SUDO")
     ):
         await send_message(message, "This task is not for you!")
         return

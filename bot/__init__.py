@@ -1,3 +1,8 @@
+# ruff: noqa: E402
+from uvloop import install
+
+install()
+
 import os
 import subprocess
 from asyncio import Lock, new_event_loop, set_event_loop
@@ -13,29 +18,20 @@ from logging import (
     basicConfig,
     getLogger,
 )
-from socket import setdefaulttimeout
 from time import time
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from aria2p import API as ariaAPI  # noqa: N811
-from aria2p import Client as ariaClient
 from pytz import timezone
-from qbittorrentapi import Client as QbClient
-from tzlocal import get_localzone
 from uvloop import install
 
-# from faulthandler import enable as faulthandler_enable
-# faulthandler_enable()
+from sabnzbdapi import SabnzbdClient
 
-install()
-setdefaulttimeout(600)
-
-getLogger("qbittorrentapi").setLevel(WARNING)
 getLogger("requests").setLevel(WARNING)
 getLogger("urllib3").setLevel(WARNING)
 getLogger("pyrogram").setLevel(ERROR)
 getLogger("httpx").setLevel(WARNING)
 getLogger("pymongo").setLevel(WARNING)
+getLogger("aiohttp").setLevel(WARNING)
 
 bot_start_time = time()
 
@@ -74,17 +70,34 @@ basicConfig(handlers=[file_handler, stream_handler], level=INFO)
 
 LOGGER = getLogger(__name__)
 
-intervals = {"status": {}, "qb": "", "jd": "", "stopAll": False}
+cpu_no = os.cpu_count()
+
+DOWNLOAD_DIR = "/usr/src/app/downloads/"
+intervals = {
+    "status": {},
+    "qb": "",
+    "jd": "",
+    "nzb": "",
+    "stopAll": False,
+}
 qb_torrents = {}
 user_data = {}
 aria2_options = {}
 qbit_options = {}
+nzb_options = {}
 queued_dl = {}
 queued_up = {}
 status_dict = {}
 task_dict = {}
 jd_downloads = {}
+nzb_jobs = {}
 rss_dict = {}
+auth_chats = {}
+excluded_extensions = ["aria2", "!qB"]
+drives_names = []
+drives_ids = []
+index_urls = []
+sudo_users = []
 non_queued_dl = set()
 non_queued_up = set()
 multi_tags = set()
@@ -93,43 +106,33 @@ queue_dict_lock = Lock()
 qb_listener_lock = Lock()
 cpu_eater_lock = Lock()
 same_directory_lock = Lock()
+nzb_listener_lock = Lock()
 jd_listener_lock = Lock()
-extension_filter = ["aria2", "!qB"]
-drives_names = []
-drives_ids = []
-index_urls = []
 shorteners_list = []
 
-aria2 = ariaAPI(ariaClient(host="http://localhost", port=6800, secret=""))
-
+sabnzbd_client = SabnzbdClient(
+    host="http://localhost",
+    api_key="mltb",
+    port="8070",
+)
 subprocess.run(["xnox", "-d", f"--profile={os.getcwd()}"], check=False)
-
-
-xnox_client = QbClient(
-    host="localhost",
-    port=8090,
-    VERIFY_WEBUI_CERTIFICATE=False,
-    REQUESTS_ARGS={"timeout": (30, 60)},
-    HTTPADAPTER_ARGS={
-        "pool_maxsize": 500,
-        "max_retries": 10,
-        "pool_block": True,
-    },
+subprocess.run(
+    [
+        "xnzb",
+        "-f",
+        "sabnzbd/SABnzbd.ini",
+        "-s",
+        ":::8070",
+        "-b",
+        "0",
+        "-d",
+        "-c",
+        "-l",
+        "0",
+        "--console",
+    ],
+    check=False,
 )
 
-trackers = (
-    subprocess.check_output(
-        "curl -Ns https://raw.githubusercontent.com/XIU2/TrackersListCollection/master/all.txt https://ngosang.github.io/trackerslist/trackers_all_http.txt https://newtrackon.com/api/all https://raw.githubusercontent.com/hezhijie0327/Trackerslist/main/trackerslist_tracker.txt | awk '$0' | tr '\n\n' ','",
-        shell=True,
-    )
-    .decode("utf-8")
-    .rstrip(",")
-)
 
-with open("a2c.conf", "a+") as a:
-    a.write("bt-stop-timeout=600\n")
-    a.write(f"bt-tracker=[{trackers}]")
-subprocess.run(["xria", "--conf-path=/usr/src/app/a2c.conf"], check=False)
-
-
-scheduler = AsyncIOScheduler(timezone=str(get_localzone()), event_loop=bot_loop)
+scheduler = AsyncIOScheduler(event_loop=bot_loop)

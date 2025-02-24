@@ -14,9 +14,9 @@ from bot.helper.telegram_helper.bot_commands import BotCommands
 from bot.helper.telegram_helper.button_build import ButtonMaker
 from bot.helper.telegram_helper.filters import CustomFilters
 from bot.helper.telegram_helper.message_utils import (
+    auto_delete_message,
     delete_message,
     edit_message,
-    five_minute_del,
     send_file,
     send_message,
 )
@@ -46,15 +46,15 @@ async def start(client, message):
                 "This token is not yours!\n\nKindly generate your own.",
             )
         data = user_data[userid]
-        if "token" not in data or data["token"] != input_token:
+        if "TOKEN" not in data or data["TOKEN"] != input_token:
             return await send_message(
                 message,
                 "<b>This token has already been used!</b>\n\nPlease get a new one.",
             )
         token = str(uuid4())
         token_time = time()
-        data["token"] = token
-        data["time"] = token_time
+        data["TOKEN"] = token
+        data["TIME"] = token_time
         user_data[userid].update(data)
         await database.update_user_tdata(userid, token, token_time)
         msg = "Your token has been successfully generated!\n\n"
@@ -88,7 +88,7 @@ async def log(_, message):
         buttons=buttons.build_menu(1),
     )
     await delete_message(message)
-    await five_minute_del(reply_message)
+    await auto_delete_message(reply_message, time=300)
 
 
 @new_task
@@ -119,7 +119,7 @@ async def aeon_callback(_, query):
             start_line = "<pre language='python'>"
             end_line = "</pre>"
             btn = ButtonMaker()
-            btn.data_button("Close", f"log {user_id} close")
+            btn.data_button("Close", f"aeon {user_id} close")
             reply_message = await send_message(
                 message,
                 start_line + escape(log_lines) + end_line,
@@ -127,7 +127,7 @@ async def aeon_callback(_, query):
             )
             await query.edit_message_reply_markup(None)
             await delete_message(message)
-            await five_minute_del(reply_message)
+            await auto_delete_message(reply_message, time=300)
         except Exception as err:
             LOGGER.error(f"TG Log Display : {err!s}")
     elif data[2] == "private":

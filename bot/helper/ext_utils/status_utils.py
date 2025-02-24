@@ -1,15 +1,12 @@
 import contextlib
-from asyncio import iscoroutinefunction
+from asyncio import gather, iscoroutinefunction
 from html import escape
 from time import time
 
 from psutil import cpu_percent, disk_usage, virtual_memory
 
-from bot import bot_start_time, status_dict, task_dict, task_dict_lock
-from bot.core.config_manager import Config
+from bot import DOWNLOAD_DIR, bot_start_time, status_dict, task_dict, task_dict_lock
 from bot.helper.telegram_helper.button_build import ButtonMaker
-
-from .bot_utils import sync_to_async
 
 SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"]
 
@@ -57,43 +54,45 @@ async def get_task_by_gid(gid: str):
     async with task_dict_lock:
         for task in task_dict.values():
             if hasattr(task, "seeding"):
-                await sync_to_async(task.update)
-            if task.gid().startswith(gid):
+                await task.update()
+            if task.gid().startswith(gid) or task.gid().endswith(gid):
                 return task
         return None
 
 
-def get_specific_tasks(status, user_id):
+async def get_specific_tasks(status, user_id):
     if status == "All":
         if user_id:
             return [
                 tk for tk in task_dict.values() if tk.listener.user_id == user_id
             ]
         return list(task_dict.values())
-    if user_id:
-        return [
-            tk
-            for tk in task_dict.values()
-            if tk.listener.user_id == user_id
-            and (
-                ((st := tk.status()) and st == status)
-                or (
-                    status == MirrorStatus.STATUS_DOWNLOAD
-                    and st not in STATUSES.values()
-                )
-            )
-        ]
-    return [
-        tk
-        for tk in task_dict.values()
-        if ((st := tk.status()) and st == status)
-        or (status == MirrorStatus.STATUS_DOWNLOAD and st not in STATUSES.values())
-    ]
+    tasks_to_check = (
+        [tk for tk in task_dict.values() if tk.listener.user_id == user_id]
+        if user_id
+        else list(task_dict.values())
+    )
+    coro_tasks = []
+    coro_tasks.extend(tk for tk in tasks_to_check if iscoroutinefunction(tk.status))
+    coro_statuses = await gather(*[tk.status() for tk in coro_tasks])
+    result = []
+    coro_index = 0
+    for tk in tasks_to_check:
+        if tk in coro_tasks:
+            st = coro_statuses[coro_index]
+            coro_index += 1
+        else:
+            st = tk.status()
+        if (st == status) or (
+            status == MirrorStatus.STATUS_DOWNLOAD and st not in STATUSES.values()
+        ):
+            result.append(tk)
+    return result
 
 
 async def get_all_tasks(req_status: str, user_id):
     async with task_dict_lock:
-        return await sync_to_async(get_specific_tasks, req_status, user_id)
+        return await get_specific_tasks(req_status, user_id)
 
 
 def get_readable_file_size(size_in_bytes):
@@ -189,7 +188,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
     msg = ""
     button = None
 
-    tasks = await sync_to_async(get_specific_tasks, status, sid if is_user else None)
+    tasks = await get_specific_tasks(status, sid if is_user else None)
 
     STATUS_LIMIT = 4
     tasks_no = len(tasks)
@@ -206,7 +205,12 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         tasks[start_position : STATUS_LIMIT + start_position],
         start=1,
     ):
-        tstatus = await sync_to_async(task.status) if status == "All" else status
+        if status != "All":
+            tstatus = status
+        elif iscoroutinefunction(task.status):
+            tstatus = await task.status()
+        else:
+            tstatus = task.status()
         if task.listener.is_super_chat:
             msg += f"<b>{index + start_position}. <a href='{task.listener.message.link}'>{tstatus}</a>: </b>"
         else:
@@ -219,11 +223,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             tstatus not in [MirrorStatus.STATUS_SEED, MirrorStatus.STATUS_QUEUEUP]
             and task.listener.progress
         ):
-            progress = (
-                await task.progress()
-                if iscoroutinefunction(task.progress)
-                else task.progress()
-            )
+            progress = task.progress()
             msg += f"\n{get_progress_bar_string(progress)} {progress}"
             if task.listener.subname:
                 subsize = f"/{get_readable_file_size(task.listener.subsize)}"
@@ -232,22 +232,27 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             else:
                 subsize = ""
                 count = ""
-            msg += f"\n<b>Processed:</b> {task.processed_bytes()}{subsize} {count}"
+            msg += f"\n<b>Processed:</b> {task.processed_bytes()}{subsize}"
+            if count:
+                msg += f"\n<b>Count:</b> {count}"
             msg += f"\n<b>Size:</b> {task.size()}"
             msg += f"\n<b>Speed:</b> {task.speed()}"
-            msg += f"\n<b>ETA:</b> {task.eta()}"
+            msg += f"\n<b>Estimated:</b> {task.eta()}"
             if hasattr(task, "seeders_num"):
                 with contextlib.suppress(Exception):
                     msg += f"\n<b>Seeders:</b> {task.seeders_num()} | <b>Leechers:</b> {task.leechers_num()}"
         elif tstatus == MirrorStatus.STATUS_SEED:
             msg += f"\n<b>Size: </b>{task.size()}"
             msg += f"\n<b>Speed: </b>{task.seed_speed()}"
-            msg += f" | <b>Uploaded: </b>{task.uploaded_bytes()}"
+            msg += f"\n<b>Uploaded: </b>{task.uploaded_bytes()}"
             msg += f"\n<b>Ratio: </b>{task.ratio()}"
             msg += f" | <b>Time: </b>{task.seeding_time()}"
         else:
             msg += f"\n<b>Size: </b>{task.size()}"
-        msg += f"\n/stop_{task.gid()[:8]}\n\n"
+        msg += f"\n<b>Tool:</b> {task.tool}"
+        task_gid = task.gid()
+        short_gid = task_gid[-8:] if task_gid.startswith("SABnzbd") else task_gid[:8]
+        msg += f"\n/stop_{short_gid}\n\n"
 
     if len(msg) == 0:
         if status == "All":
@@ -269,6 +274,6 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
                     buttons = ButtonMaker()
                 buttons.data_button(label, f"status {sid} st {status_value}")
     button = buttons.build_menu(8) if buttons else None
-    msg += f"<b>CPU:</b> {cpu_percent()}% | <b>FREE:</b> {get_readable_file_size(disk_usage(Config.DOWNLOAD_DIR).free)}"
+    msg += f"<b>CPU:</b> {cpu_percent()}% | <b>FREE:</b> {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)}"
     msg += f"\n<b>RAM:</b> {virtual_memory().percent}% | <b>UPTIME:</b> {get_readable_time(time() - bot_start_time)}"
     return msg, button

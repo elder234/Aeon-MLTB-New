@@ -11,8 +11,8 @@ from pyrogram.filters import regex, user
 from pyrogram.handlers import CallbackQueryHandler
 
 from bot import LOGGER, jd_downloads, jd_listener_lock, task_dict, task_dict_lock
+from bot.core.jdownloader_booter import jdownloader
 from bot.helper.ext_utils.bot_utils import new_task
-from bot.helper.ext_utils.jdownloader_booter import jdownloader
 from bot.helper.ext_utils.task_manager import (
     check_running_tasks,
     stop_duplicate_check,
@@ -47,7 +47,7 @@ async def configureDownload(_, query, obj):
 
 class JDownloaderHelper:
     def __init__(self, listener):
-        self._timeout = 300
+        self._timeout = 600
         self._reply_to = ""
         self.listener = listener
         self.event = Event()
@@ -76,7 +76,7 @@ class JDownloaderHelper:
         buttons.data_button("Done Selecting", "jdq sdone")
         buttons.data_button("Cancel", "jdq cancel")
         button = buttons.build_menu(2)
-        msg = f"Disable/Remove the unwanted files or change variants or edit files names from myJdownloader site for <b>{self.listener.name}</b> but don't start it manually!\n\nAfter finish press Done Selecting!\nTimeout: 300s"
+        msg = f"Remove the unwanted files or change variants or edit files names from myJdownloader site for <b>{self.listener.name}</b>.\nDon't start it manually!\n\nAfter finish press Done Selecting!\nTimeout: 10 min"
         self._reply_to = await send_message(self.listener.message, msg, button)
         await self._event_handler()
         if not self.listener.is_cancelled:

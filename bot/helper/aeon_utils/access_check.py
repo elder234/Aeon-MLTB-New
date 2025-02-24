@@ -53,7 +53,7 @@ async def error_check(message):
 
         if not token_timeout or user_id in {
             Config.OWNER_ID,
-            user_data.get(user_id, {}).get("is_sudo"),
+            user_data.get(user_id, {}).get("SUDO"),
         }:
             try:
                 temp_msg = await message._client.send_message(
@@ -69,7 +69,7 @@ async def error_check(message):
     if user_id not in {
         Config.OWNER_ID,
         Config.RSS_CHAT,
-        user_data.get(user_id, {}).get("is_sudo"),
+        user_data.get(user_id, {}).get("SUDO"),
     }:
         token_msg, button = await token_check(user_id, button)
         if token_msg:
@@ -169,15 +169,14 @@ async def token_check(user_id, button=None):
 
     user_data.setdefault(user_id, {})
     data = user_data[user_id]
-    # await database.connect()
-    data["time"] = await database.get_token_expiry(user_id)
-    expire = data.get("time")
+    data["TIME"] = await database.get_token_expiry(user_id)
+    expire = data.get("TIME")
     isExpired = expire is None or (time() - expire) > token_timeout
     if isExpired:
-        token = data["token"] if expire is None and "token" in data else str(uuid4())
+        token = data["TOKEN"] if expire is None and "TOKEN" in data else str(uuid4())
         if expire is not None:
-            del data["time"]
-        data["token"] = token
+            del data["TIME"]
+        data["TOKEN"] = token
         await database.update_user_token(user_id, token)
         user_data[user_id] = data
 
@@ -194,5 +193,4 @@ async def token_check(user_id, button=None):
 
         return (msg + f"\n<b>It will expire after {time_str}</b>!"), button
 
-    # await database.disconnect()
     return None, button

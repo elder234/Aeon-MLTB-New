@@ -51,7 +51,7 @@ async def add_aria2_download(listener, dpath, header, ratio, seed_time):
                 uris=[listener.link],
                 options=a2c_opt,
             )
-    except (TimeoutError, ClientError) as e:
+    except (TimeoutError, ClientError, Exception) as e:
         LOGGER.info(f"Aria2c Download Error: {e}")
         await listener.on_download_error(f"{e}")
         return

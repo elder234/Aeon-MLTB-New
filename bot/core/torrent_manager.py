@@ -1,11 +1,38 @@
 import contextlib
-from asyncio import gather
+from asyncio import TimeoutError, gather
+from inspect import iscoroutinefunction
 from pathlib import Path
 
 from aioaria2 import Aria2WebsocketClient
+from aiohttp import ClientError
 from aioqbt.client import create_client
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from bot import LOGGER, aria2_options
+
+
+def wrap_with_retry(obj, max_retries=3):
+    for attr_name in dir(obj):
+        if attr_name.startswith("_"):
+            continue
+
+        attr = getattr(obj, attr_name)
+        if iscoroutinefunction(attr):
+            retry_policy = retry(
+                stop=stop_after_attempt(max_retries),
+                wait=wait_exponential(multiplier=1, min=1, max=5),
+                retry=retry_if_exception_type(
+                    (ClientError, TimeoutError, RuntimeError),
+                ),
+            )
+            wrapped = retry_policy(attr)
+            setattr(obj, attr_name, wrapped)
+    return obj
 
 
 class TorrentManager:
@@ -16,6 +43,7 @@ class TorrentManager:
     async def initiate(cls):
         cls.aria2 = await Aria2WebsocketClient.new("http://localhost:6800/jsonrpc")
         cls.qbittorrent = await create_client("http://localhost:8090/api/v2/")
+        cls.qbittorrent = wrap_with_retry(cls.qbittorrent)
 
     @classmethod
     async def close_all(cls):

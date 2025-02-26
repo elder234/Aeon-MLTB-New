@@ -49,7 +49,7 @@ class DirectListener:
                     options=self._a2c_opt,
                     position=0,
                 )
-            except (TimeoutError, ClientError) as e:
+            except (TimeoutError, ClientError, Exception) as e:
                 self._failed += 1
                 LOGGER.error(f"Unable to download {filename} due to: {e}")
                 continue
